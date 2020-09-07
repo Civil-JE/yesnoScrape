@@ -19,13 +19,15 @@ class LogScraper:
         self.regions = {}
         self.text_logs = ""
         self.log_count = 0
+        self.current_page = 0
+        self.total_pages = 0
         self.set_regions()
+
+    def get_all_logs(self, only_ally=False):
+        if only_ally:
+            pyautogui.click(pyautogui.center(self.button_locations['ally']))
+
         self.current_page, self.total_pages = self._get_page_numbers()
-
-
-
-    def get_all_logs(self):
-
         for i in range(self.total_pages):
             self.get_logs_from_page()
             self.go_to_next_page()
@@ -34,14 +36,16 @@ class LogScraper:
     def get_logs_from_page(self):
         bottom_of_page = False
         while not bottom_of_page:
-            self.get_log()
+            new_log = self.get_log()
             # check if bottom of page
             curr = ''.join(e for e in self.current_log[0:25].lower() if e.isalnum())
             prev = ''.join(e for e in self.previous_log[0:25].lower() if e.isalnum())
             if curr == prev:
                 bottom_of_page = True
                 continue
-            self.scroll_down()
+            else:
+                self.text_logs = self.text_logs + new_log
+                self.scroll_down()
         self.current_page += 1
 
     def get_log(self):
@@ -61,8 +65,7 @@ class LogScraper:
 
     def take_screenshot_of_log(self):
         # take screenshot with log_coords
-        new_screenshot = pyautogui.screenshot(f'./yesnoScrape/log_screenshots/log_screenshot_{self.log_count}.png',
-                                              region=self.regions['log'])
+        new_screenshot = pyautogui.screenshot(region=self.regions['log'])
         self.log_count += 1
         # return the image
         return new_screenshot
@@ -78,8 +81,9 @@ class LogScraper:
     def go_to_next_page(self):
         # click next page buttons
         next_x, next_y = pyautogui.center(self.button_locations['next_page'])
-        pyautogui.click(x=next_x, y=next_y)
-        pyautogui.moveTo(x=next_x+50, y=next_y+50)  # quickly move so it doesn't double click?
+        pyautogui.moveTo(x=next_x, y=next_y)
+        pyautogui.click()
+        sleep(1)
 
     def set_regions(self):
         # First find the button_locations
@@ -94,6 +98,7 @@ class LogScraper:
         summon_loc = pyautogui.locateOnScreen('./yesnoScrape/images/summon_dir_button.png')
         back_loc = pyautogui.locateOnScreen('./yesnoScrape/images/back_button.png')
         next_loc = pyautogui.locateOnScreen('./yesnoScrape/images/next_page_button.png')
+        ally_loc = pyautogui.locateOnScreen('./yesnoScrape/images/ally_dir_button.png')
 
         if not all_loc or not summon_loc or not back_loc or not next_loc:
             print('Could not find one of the buttons. Crashing and burning in a storm of hellfire and brimstone.')
@@ -105,6 +110,7 @@ class LogScraper:
         self.button_locations['summon'] = summon_loc
         self.button_locations['next_page'] = next_loc
         self.button_locations['back_button'] = back_loc
+        self.button_locations['ally'] = ally_loc
 
     def _set_log_region(self):
         # Using the all button, summon button, and next page button, get the coords needed to screenshot the logs
@@ -150,7 +156,7 @@ class LogScraper:
 
     def _page_numbers_from_image(self, page_numbers_image):
         # Make blurry numbers less blurry so they can be read
-        parsable_numbers = page_numbers_image.filter(ImageFilter.EDGE_ENHANCE)
+        parsable_numbers = page_numbers_image.convert('L')
         page_numbers_raw = pytesseract.image_to_string(parsable_numbers)
         page_numbers = page_numbers_raw.split('\n')[0]
         current_page, total_pages = page_numbers.split('/')

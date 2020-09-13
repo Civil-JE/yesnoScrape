@@ -143,16 +143,21 @@ class LogScraper:
                                         ({current_page_raw}/{total_pages_raw})')
         return current_page, total_pages
 
-    def _is_at_end_of_page(self):
-        # Check if the first entry of the current log is a duplicate from previous logs
-        # Check if the first entry of the current log is an incomplete
-        pass
-
     def _make_log_text_parsable(self, log_image):
         # Fuck with new log colors so that it can be more easily read
-        source = log_image.split()
-        updated_source = source[2].point(lambda i: i > 100 and 255)
-        return updated_source
+        log_pix = log_image.load()
+        for y in range(log_image.size[1]):
+            for x in range(log_image.size[0]):
+                log_pix[x, y] = self._check_if_target_values(log_pix[x, y])
+        return log_image
+
+    def _check_if_target_values(self, rgb):
+        red, green, blue = rgb
+
+        if ((red < 56 or red > 96) or (green < 47 or green > 90) or (blue < 40 or blue > 78)) and \
+           ((red < 100 or red > 115) or (green < 89 or green > 105) or (blue < 80 or blue > 100)):
+            return (255, 255, 255, 255)
+        return (0, 0, 0, 255)
 
     def _page_numbers_from_image(self, page_numbers_image):
         # Make blurry numbers less blurry so they can be read
